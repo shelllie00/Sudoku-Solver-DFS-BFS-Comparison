@@ -1,6 +1,6 @@
-from BFS_Sudoku import BFS_solve
-from DFS_Sudoku import DFS_solve
-from Heuristics_Sudoku import H_Solve
+from ref_BFS_Sudoku import BFS_solve
+from ref_DFS_Sudoku import DFS_solve
+from ref_Heuristics_Sudoku import H_Solve
 
 print ("\n\nTesting on easy 6x6 grid...")
 grid = [[6,0,0,0,0,0],
