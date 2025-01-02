@@ -6,3 +6,7 @@ gcc -shared -o libDFSSudoku.dll DFS_Sudoku.o
 gcc sudoku_solver.c -L. -lDFSSudoku -lBFSSudoku -o main
 ./main
 我是用動態連結 lib（應該啦）
+==================================================================
+CODE 說明：
+
+https://docs.google.com/document/d/19iCwdcd6wHNWvhRv4cU1-kgGNNH2vjvHofuyhSclACU/edit?usp=sharing
