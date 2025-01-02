@@ -1,144 +1,171 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdbool.h>
 #include <string.h>
 #include <time.h>
 
-// Board dimensions (standard Sudoku is 9x9)
 #define SIZE 9
 #define HEIGHT 3
+#define QUEUE_CAPACITY 100000 // if 10000, example 3 will result in queue overflow
 
-// Define the Node structure
 typedef struct Node {
-    int state[SIZE][SIZE];  // Board state
-    int action[3];          // [value, row, column]
-    struct Node* next;      // Used for the queue
+    int state[SIZE][SIZE];
+    int action[3]; // {number, row, column}
 } Node;
 
-// Define the Queue structure
 typedef struct Queue {
-    Node* front;
-    Node* rear;
-    int size;
+    Node* data[QUEUE_CAPACITY];
+    int front;
+    int rear;
 } Queue;
 
-// Initialize the queue
-void initQueue(Queue* q) {
-    q->front = q->rear = NULL;
-    q->size = 0;
+// Queue functions
+Queue* create_queue() {
+    Queue* q = (Queue*)malloc(sizeof(Queue));
+    q->front = 0;
+    q->rear = 0;
+    return q;
 }
 
-// Check if the queue is empty
-bool isEmpty(Queue* q) {
-    return q->size == 0;
+int is_empty(Queue* q) {
+    return q->front == q->rear;
 }
 
-// Enqueue operation
-void enqueue(Queue* q, Node* newNode) {
-    if (isEmpty(q)) {
-        q->front = q->rear = newNode;
-    } else {
-        q->rear->next = newNode;
-        q->rear = newNode;
+void enqueue(Queue* q, Node* node) {
+    if ((q->rear + 1) % QUEUE_CAPACITY == q->front) {
+        printf("Queue overflow\n");
+        exit(1);
     }
-    q->size++;
+    q->data[q->rear] = node;
+    q->rear = (q->rear + 1) % QUEUE_CAPACITY;
 }
 
-// Dequeue operation
 Node* dequeue(Queue* q) {
-    if (isEmpty(q)) return NULL;
-    Node* temp = q->front;
-    q->front = q->front->next;
-    q->size--;
-    if (q->front == NULL) q->rear = NULL;
-    return temp;
+    if (is_empty(q)) {
+        printf("Queue underflow\n");
+        exit(1);
+    }
+    Node* node = q->data[q->front];
+    q->front = (q->front + 1) % QUEUE_CAPACITY;
+    return node;
 }
 
-// Create a new node
-Node* createNode(int state[SIZE][SIZE], int value, int row, int col) {
-    Node* newNode = (Node*)malloc(sizeof(Node));
-    memcpy(newNode->state, state, SIZE * SIZE * sizeof(int));
-    newNode->action[0] = value;
-    newNode->action[1] = row;
-    newNode->action[2] = col;
-    newNode->next = NULL;
-    return newNode;
-}
-
-// Check if a number is valid in the given position
-bool isValid(int state[SIZE][SIZE], int row, int col, int value) {
-    // Check the row
-    for (int i = 0; i < SIZE; i++) {
-        if (state[row][i] == value) return false;
-    }
-    // Check the column
-    for (int i = 0; i < SIZE; i++) {
-        if (state[i][col] == value) return false;
-    }
-    // Check the subgrid
-    int startRow = (row / HEIGHT) * HEIGHT;
-    int startCol = (col / HEIGHT) * HEIGHT;
-    for (int i = 0; i < HEIGHT; i++) {
-        for (int j = 0; j < HEIGHT; j++) {
-            if (state[startRow + i][startCol + j] == value) return false;
-        }
-    }
-    return true;
-}
-
-// Check if the board is complete (no empty cells)
-bool isComplete(int state[SIZE][SIZE]) {
+// Utility functions
+void copy_state(int dest[SIZE][SIZE], int src[SIZE][SIZE]) {
     for (int i = 0; i < SIZE; i++) {
         for (int j = 0; j < SIZE; j++) {
-            if (state[i][j] == 0) return false;
+            dest[i][j] = src[i][j];
         }
     }
-    return true;
 }
 
-// BFS algorithm to solve Sudoku
-Node* BFS(int initial[SIZE][SIZE]) {
-    Queue queue;
-    initQueue(&queue);
+int is_valid(int grid[SIZE][SIZE], int row, int col, int num) {
+    int row_start = (row / HEIGHT) * HEIGHT;
+    int col_start = (col / 3) * 3;
 
-    Node* root = createNode(initial, 0, 0, 0);
-    enqueue(&queue, root);
-
-    while (!isEmpty(&queue)) {
-        Node* current = dequeue(&queue);
-
-        if (isComplete(current->state)) {
-            return current;  // Solution found
+    for (int i = 0; i < SIZE; i++) {
+        if (grid[row][i] == num || grid[i][col] == num) {
+            return 0;
         }
+    }
 
-        // Find the first empty cell
-        for (int row = 0; row < SIZE; row++) {
-            for (int col = 0; col < SIZE; col++) {
-                if (current->state[row][col] == 0) {
-                    // Try all possible values in the empty cell
-                    for (int value = 1; value <= SIZE; value++) {
-                        if (isValid(current->state, row, col, value)) {
-                            Node* child = createNode(current->state, value, row, col);
-                            child->state[row][col] = value;
-                            enqueue(&queue, child);
-                        }
-                    }
-                    return NULL;  // Stop further exploration of this branch
-                }
+    for (int i = 0; i < HEIGHT; i++) {
+        for (int j = 0; j < 3; j++) {
+            if (grid[row_start + i][col_start + j] == num) {
+                return 0;
             }
         }
     }
-    return NULL;  // No solution found
+
+    return 1;
 }
 
-// Print the board
-void printBoard(int state[SIZE][SIZE]) {
+int get_empty_spot(int grid[SIZE][SIZE], int* row, int* col) {
     for (int i = 0; i < SIZE; i++) {
         for (int j = 0; j < SIZE; j++) {
-            printf("%2d ", state[i][j]);
+            if (grid[i][j] == 0) {
+                *row = i;
+                *col = j;
+                return 1;
+            }
         }
-        printf("\n");
     }
+    return 0;
 }
 
+int is_solution_valid(int grid[SIZE][SIZE]) {
+    int total = 45; // 1 + 2 + ... + 9
 
+    for (int i = 0; i < SIZE; i++) {
+        int row_sum = 0, col_sum = 0;
+        for (int j = 0; j < SIZE; j++) {
+            row_sum += grid[i][j];
+            col_sum += grid[j][i];
+        }
+        if (row_sum != total || col_sum != total) {
+            return 0;
+        }
+    }
+
+    for (int row = 0; row < SIZE; row += HEIGHT) {
+        for (int col = 0; col < SIZE; col += 3) {
+            int block_sum = 0;
+            for (int i = 0; i < HEIGHT; i++) {
+                for (int j = 0; j < 3; j++) {
+                    block_sum += grid[row + i][col + j];
+                }
+            }
+            if (block_sum != total) {
+                return 0;
+            }
+        }
+    }
+
+    return 1;
+}
+
+void BFS_solve(int board[SIZE][SIZE]) {
+    printf("\nSolving with BFS...\n");
+    clock_t start_time = clock();
+
+    Node* root = (Node*)malloc(sizeof(Node));
+    copy_state(root->state, board);
+
+    Queue* frontier = create_queue();
+    enqueue(frontier, root);
+
+    while (!is_empty(frontier)) {
+        Node* node = dequeue(frontier);
+
+        int row, col;
+        if (!get_empty_spot(node->state, &row, &col)) {
+            if (is_solution_valid(node->state)) {
+                printf("Found solution:\n");
+                for (int i = 0; i < SIZE; i++) {
+                    for (int j = 0; j < SIZE; j++) {
+                        printf("%d ", node->state[i][j]);
+                    }
+                    printf("\n");
+                }
+                clock_t end_time = clock();
+                printf("Elapsed time: %.2f seconds\n", (double)(end_time - start_time) / CLOCKS_PER_SEC);
+                free(frontier);
+                return;
+            }
+        }
+
+        for (int num = 1; num <= SIZE; num++) {
+            if (is_valid(node->state, row, col, num)) {
+                Node* child = (Node*)malloc(sizeof(Node));
+                copy_state(child->state, node->state);
+                child->state[row][col] = num;
+                enqueue(frontier, child);
+            }
+        }
+        free(node);
+    }
+
+    printf("No possible solutions\n");
+    clock_t end_time = clock();
+    printf("Elapsed time: %.2f seconds\n", (double)(end_time - start_time) / CLOCKS_PER_SEC);
+    free(frontier);
+}
