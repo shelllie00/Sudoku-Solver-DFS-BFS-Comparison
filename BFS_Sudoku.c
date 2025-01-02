@@ -100,6 +100,7 @@ bool isComplete(int state[SIZE][SIZE]) {
 Node* BFS(int initial[SIZE][SIZE]) {
     Queue queue;
     initQueue(&queue);
+    clock_t start_time = clock();
 
     Node* root = createNode(initial, 0, 0, 0);
     enqueue(&queue, root);
@@ -128,6 +129,9 @@ Node* BFS(int initial[SIZE][SIZE]) {
             }
         }
     }
+    clock_t end_time = clock();
+    double elapsed_time = ((double)(end_time - start_time)) / CLOCKS_PER_SEC;
+    printf("Elapsed time: %.2f seconds\n", elapsed_time);
     return NULL;  // No solution found
 }
 
